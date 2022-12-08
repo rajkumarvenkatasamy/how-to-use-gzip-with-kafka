@@ -2,35 +2,36 @@
 version: '3.9'
 services:
   zookeeper:
-    image: confluentinc/cp-zookeeper:6.2.1
     container_name: zookeeper
+    image: quay.io/strimzi/kafka:0.28.0-kafka-3.1.0
+    command: [
+        "sh", "-c",
+        "bin/zookeeper-server-start.sh config/zookeeper.properties"
+      ]
+    ports:
+    - "2181:2181"
     environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-    volumes:
-      - ./message_broker_data/zookeeper/data:/var/lib/zookeeper/data
-      - ./message_broker_data/zookeeper/log:/var/lib/zookeeper/log
-      - ./message_broker_data/zookeeper/secrets:/etc/zookeeper/secrets
+      LOG_DIR: /tmp/logs
     networks:
       - kafka-network
 
   kafka:
-    image: confluentinc/cp-kafka:6.2.1
     container_name: kafka
+    image: quay.io/strimzi/kafka:0.28.0-kafka-3.1.0
+    command: [
+      "sh", "-c",
+      "bin/kafka-server-start.sh config/server.properties --override listeners=$${KAFKA_LISTENERS} --override advertised.listeners=$${KAFKA_ADVERTISED_LISTENERS} --override zookeeper.connect=$${KAFKA_ZOOKEEPER_CONNECT} --override listener.security.protocol.map=$${KAFKA_LISTENER_SECURITY_PROTOCOL_MAP}"
+    ]
     depends_on:
-      - zookeeper
+    - zookeeper
     ports:
-      - "9092:9092"
+    - "9092:9092"
     environment:
-      KAFKA_BROKER_ID: 1
+      LOG_DIR: "/tmp/logs"
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://host.docker.internal:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-    volumes:
-      - ./message_broker_data/kafka/secrets:/etc/kafka/secrets
-      - ./message_broker_data/kafka/data:/var/lib/kafka/data
     networks:
       - kafka-network
 
